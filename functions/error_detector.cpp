@@ -60,7 +60,8 @@ std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes){
 
         int data_bit_pos = 23;
 
-        encoded_bytes[i] ^= (1U << (6));
+        encoded_bytes[i] ^= (1U << 6);
+        // encoded_bytes[i] ^= (1U << 7);
 
         for (int j = 1; j <= 30; ++j){
             if ((encoded_bytes[i] >> (j - 1)) & 1){
