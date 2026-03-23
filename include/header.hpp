@@ -27,6 +27,8 @@ struct SharedData{
     std::vector<uint8_t> bytes;
     std::vector<uint32_t> encoded_bytes;
     std::vector<uint8_t> decoded_bytes;
+    std::vector<uint32_t> interleavin_block;
+    std::vector<uint32_t> deinterleavin_block;
     std::vector<std::complex<float>> symbols;
     std::vector<uint32_t> words;
 
@@ -43,6 +45,9 @@ std::string decoder(std::vector<uint8_t> &bytes);
 
 std::vector<uint32_t> hamming_encoder(std::vector<uint8_t> &bytes);
 std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes);
+
+std::vector<uint32_t> interleaving(std::vector<uint32_t> &hamming_encoded);
+std::vector<uint32_t> deinterleaving(std::vector<uint32_t> interleaving_block);
 
 std::vector<std::complex<float>> QPSK_modulator(const std::vector<uint32_t> &bits);
 std::vector<uint32_t> QPSK_demodulator(std::vector<std::complex<float>> &symbols);
