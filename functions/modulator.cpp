@@ -1,4 +1,5 @@
 #include "header.hpp"
+#include <iostream>
 
 std::vector<std::complex<float>> QPSK_modulator(const std::vector<uint32_t> &bits) {
     const float inv_sqrt2 = 1.0f / sqrtf(2.0f);

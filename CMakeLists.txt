@@ -21,7 +21,7 @@ find_package(OpenGL REQUIRED)
 
 # ---------- FFTW3 ----------
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(FFTW3 REQUIRED fftw3)
+pkg_check_modules(FFTW3F REQUIRED fftw3f)
 
 # ---------- SDL2 ----------
 find_package(SDL2 CONFIG QUIET)
@@ -87,6 +87,8 @@ set(COMMON_SRCS
     ${FUNC_DIR}/interleaving.cpp
     ${FUNC_DIR}/modulator.cpp
     ${FUNC_DIR}/imgui_funcs.cpp
+    ${FUNC_DIR}/chanel_model.cpp
+    ${FUNC_DIR}/ofdm_modulator.cpp
     ${SRC_DIR}/back.cpp
 )
 
@@ -95,11 +97,11 @@ add_executable(main.elf
     ${SRC_DIR}/main.cpp
     ${COMMON_SRCS}
 )
-target_include_directories(main.elf PRIVATE ${INCLUDE_DIR} ${FFTW3_INCLUDE_DIRS})
+target_include_directories(main.elf PRIVATE ${INCLUDE_DIR} ${FFTW3F_INCLUDE_DIRS})
 target_link_libraries(main.elf PRIVATE
     imgui
     implot
-    ${FFTW3_LIBRARIES}
+    ${FFTW3F_LIBRARIES}
     GLEW::GLEW
     SDL2::SDL2
     OpenGL::GL

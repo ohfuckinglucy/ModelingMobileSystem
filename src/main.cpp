@@ -1,4 +1,10 @@
 #include "header.hpp"
+#include "backends/imgui_impl_opengl3.h"
+#include "backends/imgui_impl_sdl2.h"
+#include "imgui.h"
+#include "implot.h"
+#include <thread>
+#include <fftw3.h>
 
 int main(int argc, char *argv[]) {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
@@ -35,6 +41,14 @@ int main(int argc, char *argv[]) {
 
     SharedData sd;
 
+    sd.in_ifft = fftwf_alloc_complex(sd.OfdmCfg.FFT_SIZE);
+    sd.out_ifft = fftwf_alloc_complex(sd.OfdmCfg.FFT_SIZE);
+    sd.in_fft = fftwf_alloc_complex(sd.OfdmCfg.FFT_SIZE);
+    sd.out_fft = fftwf_alloc_complex(sd.OfdmCfg.FFT_SIZE);
+
+    sd.plan_ifft = fftwf_plan_dft_1d(sd.OfdmCfg.FFT_SIZE, sd.in_ifft, sd.out_ifft, FFTW_BACKWARD, FFTW_ESTIMATE);
+    sd.plan_fft = fftwf_plan_dft_1d(sd.OfdmCfg.FFT_SIZE, sd.in_fft, sd.out_fft, FFTW_FORWARD, FFTW_ESTIMATE);
+
     std::thread Back;
     Back = std::thread(back, std::ref(sd));
 
@@ -55,6 +69,15 @@ int main(int argc, char *argv[]) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
         ImGui::DockSpaceOverViewport(0, nullptr, ImGuiDockNodeFlags_None);
+
+        ImGui::Begin("Config");
+
+        ImGui::SliderInt("FFT Size", &sd.OfdmCfg.FFT_SIZE, 64, 512);
+        ImGui::SliderInt("Piltos Space", &sd.OfdmCfg.RS, 4, 30);
+        ImGui::SliderFloat("Guard", &sd.OfdmCfg.C, 0, 1);
+        ImGui::SliderInt("CP Ratio", &sd.OfdmCfg.CP_ratio, 0, sd.OfdmCfg.FFT_SIZE);
+
+        ImGui::End();
 
         ImGui::Begin("Log");
 
@@ -139,11 +162,28 @@ int main(int argc, char *argv[]) {
             ImPlot::EndPlot();
         }
 
+        if (ImPlot::BeginPlot("OFDM Signal", ImVec2(-1, 200))){
+            std::vector<float> I;
+            std::vector<float> Q;
+
+            I.reserve(sd.ofdm_symbols.size());
+            Q.reserve(sd.ofdm_symbols.size());
+
+            for (size_t i = 0; i < sd.ofdm_symbols.size(); i ++){
+                I.push_back(sd.ofdm_symbols[i].real());
+                Q.push_back(sd.ofdm_symbols[i].imag());
+            }
+
+            ImPlot::PlotLine("Real", I.data(), I.size());
+            ImPlot::PlotLine("Imag", Q.data(), Q.size());
+            ImPlot::EndPlot();
+        }
+
         ImGui::End();
 
         ImGui::Begin("Constellation");
 
-        if (ImPlot::BeginPlot("I/Q", ImVec2(600, 600))){
+        if (ImPlot::BeginPlot("I/Q", ImVec2(600, -1))){
             std::vector<float> I;
             std::vector<float> Q;
 
@@ -164,6 +204,16 @@ int main(int argc, char *argv[]) {
             ImPlot::EndPlot();
         }
 
+        ImGui::Begin("Spectrum Analyzer");
+        if (ImPlot::BeginPlot("##Spectrum", ImVec2(-1, -1))) {
+            if (!sd.rx_spectrum.empty()) {
+                ImPlot::PlotLine("dB", sd.rx_spectrum.data(), sd.rx_spectrum.size());
+            }
+            ImPlot::EndPlot();
+        }
+        ImGui::End();
+
+
         ImGui::End();
 
         ImGui::Render();
@@ -177,6 +227,14 @@ int main(int argc, char *argv[]) {
     if (Back.joinable()){
         Back.join();
     }
+    
+    fftwf_free(sd.in_ifft);
+    fftwf_free(sd.out_ifft);
+    fftwf_free(sd.in_fft);
+    fftwf_free(sd.out_fft);
+
+    fftwf_destroy_plan(sd.plan_fft);
+    fftwf_destroy_plan(sd.plan_ifft);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();

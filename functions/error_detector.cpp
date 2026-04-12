@@ -1,4 +1,5 @@
 #include "header.hpp"
+#include <iostream>
 
 std::vector<uint32_t> hamming_encoder(std::vector<uint8_t> &bytes){
     if (bytes.size() < 1){
@@ -60,9 +61,6 @@ std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes){
 
         int data_bit_pos = 23;
 
-        encoded_bytes[i] ^= (1U << 6);
-        // encoded_bytes[i] ^= (1U << 7);
-
         for (int j = 1; j <= 30; ++j){
             if ((encoded_bytes[i] >> (j - 1)) & 1){
                 syndrome ^= j;
@@ -70,7 +68,7 @@ std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes){
         }
 
         if (syndrome == 0){
-            std::cerr << "[DEBUG] OK" << std::endl;
+            // std::cerr << "[DEBUG] OK" << std::endl;
         } else{
             encoded_bytes[i] ^= (1U << (syndrome - 1));
         }
@@ -85,7 +83,6 @@ std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes){
             }
             data_bit_pos--;
         }
-
 
         decoded_bytes.push_back((block >> 16) & 0xFF);
         decoded_bytes.push_back((block >> 8) & 0xFF);
