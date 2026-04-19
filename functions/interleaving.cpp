@@ -1,6 +1,7 @@
 #include "header.hpp"
 
-std::vector<uint32_t> interleaving(std::vector<uint32_t> &hamming_encoded){
+std::vector<uint32_t> interleaving(std::vector<uint32_t> &hamming_encoded)
+{
     if (hamming_encoded.empty())
         return {};
     constexpr size_t B = 32;
@@ -20,7 +21,8 @@ std::vector<uint32_t> interleaving(std::vector<uint32_t> &hamming_encoded){
     return output;
 }
 
-std::vector<uint32_t> deinterleaving(std::vector<uint32_t> interleaving_block){
+std::vector<uint32_t> deinterleaving(std::vector<uint32_t> interleaving_block)
+{
     if (interleaving_block.empty())
         return {};
     constexpr size_t B = 32;
@@ -40,5 +42,4 @@ std::vector<uint32_t> deinterleaving(std::vector<uint32_t> interleaving_block){
         output[dw] |= (bit << db);
     }
     return output;
-
 }
