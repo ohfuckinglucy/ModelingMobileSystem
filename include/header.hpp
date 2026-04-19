@@ -19,9 +19,18 @@ struct OFDMConfig
     int CP_ratio = 8;
 };
 
+struct ChannelConfig
+{
+    int N_b = 6;
+    int B = 13e6;
+    float carrier_freq = 2400e6;
+    float N_0 = -15.0f; // Дб
+};
+
 struct SharedData
 {
     struct OFDMConfig OfdmCfg;
+    struct ChannelConfig ChannelCfg;
 
     std::mutex mtx;
 
@@ -33,6 +42,8 @@ struct SharedData
     std::vector<uint32_t> interleavin_block;
     std::vector<uint32_t> deinterleavin_block;
     std::vector<std::complex<float>> symbols;
+    std::vector<std::complex<float>> signal;
+
     std::vector<uint32_t> words;
     std::vector<std::complex<float>> ofdm_symbols;
     std::vector<std::complex<float>> symbols_rx;
@@ -73,5 +84,6 @@ std::vector<uint32_t> QPSK_demodulator(std::vector<std::complex<float>> &symbols
 
 std::vector<std::complex<float>> ofdm_modulator(const std::vector<std::complex<float>> &symbols, SharedData &sd);
 std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex<float>> &rx_signal, SharedData &sd);
+std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &signal, SharedData &sd);
 
-std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &freq, SharedData &sd);
+std::vector<std::complex<float>> chanel_model(const std::vector<std::complex<float>> ofdm_symbols, SharedData &sd);

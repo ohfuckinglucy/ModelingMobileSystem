@@ -166,13 +166,13 @@ int main(int argc, char *argv[])
             std::vector<float> I;
             std::vector<float> Q;
 
-            I.reserve(sd.symbols.size());
-            Q.reserve(sd.symbols.size());
+            I.reserve(sd.signal.size());
+            Q.reserve(sd.signal.size());
 
-            for (size_t i = 0; i < sd.symbols.size(); i++)
+            for (size_t i = 0; i < sd.signal.size(); i++)
             {
-                I.push_back(sd.symbols[i].real());
-                Q.push_back(sd.symbols[i].imag());
+                I.push_back(sd.signal[i].real());
+                Q.push_back(sd.signal[i].imag());
             }
 
             ImPlot::PlotLine("Real", I.data(), I.size());
@@ -208,13 +208,13 @@ int main(int argc, char *argv[])
             std::vector<float> I;
             std::vector<float> Q;
 
-            I.reserve(sd.symbols.size());
-            Q.reserve(sd.symbols.size());
+            I.reserve(sd.symbols_rx.size());
+            Q.reserve(sd.symbols_rx.size());
 
-            for (size_t i = 0; i < sd.symbols.size(); i++)
+            for (size_t i = 0; i < sd.symbols_rx.size(); i++)
             {
-                I.push_back(sd.symbols[i].real());
-                Q.push_back(sd.symbols[i].imag());
+                I.push_back(sd.symbols_rx[i].real());
+                Q.push_back(sd.symbols_rx[i].imag());
             }
 
             ImPlot::SetupAxesLimits(-1.5, 1.5, -1.5, 1.5);
@@ -248,9 +248,7 @@ int main(int argc, char *argv[])
     }
 
     if (Back.joinable())
-    {
         Back.join();
-    }
 
     fftwf_free(sd.in_ifft);
     fftwf_free(sd.out_ifft);

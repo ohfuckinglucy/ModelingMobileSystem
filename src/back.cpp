@@ -23,12 +23,13 @@ void back(SharedData &sd)
             sd.symbols = QPSK_modulator(sd.interleavin_block);
             sd.ofdm_symbols = ofdm_modulator(sd.symbols, std::ref(sd));
 
-            sd.rx_spectrum = spectrum_calculate(sd.ofdm_symbols, std::ref(sd));
+            sd.signal = chanel_model(sd.ofdm_symbols, std::ref(sd));
+            sd.rx_spectrum = spectrum_calculate(sd.signal, std::ref(sd));
 
-            sd.symbols_rx = ofdm_demodulator(sd.ofdm_symbols, std::ref(sd));
+            sd.symbols_rx = ofdm_demodulator(sd.signal, std::ref(sd));
             sd.words = QPSK_demodulator(sd.symbols_rx);
             sd.deinterleavin_block = deinterleaving(sd.words);
-            sd.decoded_bytes = hamming_decoder(sd.words);
+            sd.decoded_bytes = hamming_decoder(sd.deinterleavin_block);
             sd.rx_buf = decoder(sd.decoded_bytes);
         }
     }

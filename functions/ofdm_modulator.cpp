@@ -127,11 +127,11 @@ std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex
     return output;
 }
 
-std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &freq, SharedData &sd) {
-    std::vector<std::complex<float>> local_freq = freq;
-    local_freq.resize(1024, { 0.f, 0.f });
+std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &signal, SharedData &sd) {
+    std::vector<std::complex<float>> local_signal = signal;
+    local_signal.resize(1024, { 0.f, 0.f });
 
-    std::copy_n(local_freq.data(), 1024, reinterpret_cast<std::complex<float> *>(sd.in_spectrum));
+    std::copy_n(local_signal.data(), 1024, reinterpret_cast<std::complex<float> *>(sd.in_spectrum));
 
     fftwf_execute(sd.plan_spectrum);
 
