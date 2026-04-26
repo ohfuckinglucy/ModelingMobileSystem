@@ -4,6 +4,7 @@
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdlib>
 #include <fftw3.h>
 #include <vector>
 
@@ -94,15 +95,24 @@ std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex
     size_t num_symbols = rx_signal.size() / symbol_len;
     output.reserve(num_symbols * NSYM);
 
-    std::vector<bool> is_pilot(N_fft, false);
+    std::vector<int> pilot_idx;
+    pilot_idx.reserve(RS);
     for (int i = 0; i < RS; ++i)
     {
         int j = NZ + i * sd.OfdmCfg.RS;
         if (j < N_fft)
-            is_pilot[j] = true;
+            pilot_idx.push_back(j);
     }
 
+    std::vector<bool> is_pilot(N_fft, false);
+    for (int p : pilot_idx)
+        is_pilot[p] = true;
+
     std::vector<std::complex<float>> freq(N_fft);
+    std::vector<std::complex<float>> H(N_fft);
+    std::vector<std::complex<float>> freq_eq(N_fft);
+
+    const std::complex<float> pilot(0.707f, 0.707f);
 
     for (size_t sym = 0; sym < num_symbols; ++sym)
     {
@@ -113,39 +123,36 @@ std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex
 
         std::copy_n(reinterpret_cast<std::complex<float> *>(sd.out_fft), N_fft, freq.begin());
 
-        std::vector<std::complex<float>> H(N_fft, { 1.f, 0.f });
-        const std::complex<float> pilot(0.707f, 0.707f);
+        for (int p : pilot_idx)
+            H[p] = freq[p] / pilot;
 
-        for (int i = 0; i < N_fft; ++i)
+        for (size_t p = 0; p + 1 < pilot_idx.size(); ++p)
         {
-            if (is_pilot[i])
-                H[i] = freq[i] / pilot;
-        }
+            int k1 = pilot_idx[p];
+            int k2 = pilot_idx[p + 1];
+            float mag1 = std::abs(H[k1]), mag2 = std::abs(H[k2]);
+            float phi1 = std::arg(H[k1]), phi2 = std::arg(H[k2]);
 
-        for (int i = 0; i < N_fft; ++i)
-        {
-            if (!is_pilot[i])
+            float dphi = phi2 - phi1;
+
+            for (int k = k1 + 1; k < k2; ++k)
             {
-                int left = i, right = i;
-
-                while (left >= 0 && !is_pilot[left])
-                    left--;
-                while (right < N_fft && !is_pilot[right])
-                    right++;
-
-                if (left >= 0 && right < N_fft)
-                {
-                    float t = float(i - left) / float(right - left);
-                    H[i] = (1 - t) * H[left] + t * H[right];
-                }
-                else if (left >= 0)
-                    H[i] = H[left];
-                else if (right < N_fft)
-                    H[i] = H[right];
+                float a = float(k - k1) / float(k2 - k1);
+                H[k] = std::polar(mag1 + a * (mag2 - mag1), phi1 + a * dphi);
             }
         }
 
-        std::vector<std::complex<float>> freq_eq(N_fft);
+        if (!pilot_idx.empty())
+        {
+            int first = pilot_idx.front();
+            int last = pilot_idx.back();
+
+            for (int k = 0; k < first; ++k)
+                H[k] = H[first];
+
+            for (int k = last + 1; k < N_fft; ++k)
+                H[k] = H[last];
+        }
 
         for (int i = 0; i < N_fft; ++i)
         {
