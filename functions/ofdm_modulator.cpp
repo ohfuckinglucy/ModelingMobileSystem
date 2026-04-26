@@ -113,12 +113,54 @@ std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex
 
         std::copy_n(reinterpret_cast<std::complex<float> *>(sd.out_fft), N_fft, freq.begin());
 
+        std::vector<std::complex<float>> H(N_fft, { 1.f, 0.f });
+        const std::complex<float> pilot(0.707f, 0.707f);
+
+        for (int i = 0; i < N_fft; ++i)
+        {
+            if (is_pilot[i])
+                H[i] = freq[i] / pilot;
+        }
+
+        for (int i = 0; i < N_fft; ++i)
+        {
+            if (!is_pilot[i])
+            {
+                int left = i, right = i;
+
+                while (left >= 0 && !is_pilot[left])
+                    left--;
+                while (right < N_fft && !is_pilot[right])
+                    right++;
+
+                if (left >= 0 && right < N_fft)
+                {
+                    float t = float(i - left) / float(right - left);
+                    H[i] = (1 - t) * H[left] + t * H[right];
+                }
+                else if (left >= 0)
+                    H[i] = H[left];
+                else if (right < N_fft)
+                    H[i] = H[right];
+            }
+        }
+
+        std::vector<std::complex<float>> freq_eq(N_fft);
+
+        for (int i = 0; i < N_fft; ++i)
+        {
+            if (std::abs(H[i]) > 1e-6f)
+                freq_eq[i] = freq[i] / H[i];
+            else
+                freq_eq[i] = freq[i];
+        }
+
         int data_pos = 0;
         for (int i = NZ; i < NZ + N_pl && data_pos < NSYM; ++i)
         {
             if (!is_pilot[i])
             {
-                output.push_back(freq[i]);
+                output.push_back(freq_eq[i]);
                 data_pos++;
             }
         }
@@ -127,7 +169,8 @@ std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex
     return output;
 }
 
-std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &signal, SharedData &sd) {
+std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &signal, SharedData &sd)
+{
     std::vector<std::complex<float>> local_signal = signal;
     local_signal.resize(1024, { 0.f, 0.f });
 
@@ -136,9 +179,10 @@ std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &si
     fftwf_execute(sd.plan_spectrum);
 
     std::vector<float> spectrum_db(1024);
-    std::complex<float>* out_ptr = reinterpret_cast<std::complex<float> *>(sd.out_spectrum);
+    std::complex<float> *out_ptr = reinterpret_cast<std::complex<float> *>(sd.out_spectrum);
 
-    for (int i = 0; i < 1024; ++i) {
+    for (int i = 0; i < 1024; ++i)
+    {
         float power = std::norm(out_ptr[i]);
         spectrum_db[i] = 10.0f * std::log10(power + 1e-12f);
     }

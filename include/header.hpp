@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cmath>
 #include <complex>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <fftw3.h>
@@ -22,9 +23,9 @@ struct OFDMConfig
 struct ChannelConfig
 {
     int N_b = 6;
-    int B = 13e6;
-    float carrier_freq = 2400e6;
-    float N_0 = -15.0f; // Дб
+    int B = 7e6;
+    float carrier_freq = 1700e6;
+    float N_0 = 0.0f; // Дб
 };
 
 struct SharedData
@@ -52,8 +53,18 @@ struct SharedData
 
     std::string hamming_log;
 
+    float BER;
+    std::vector<float> ber_curve;
+    std::vector<float> BER_vec;
+    size_t ber_vec_offset;
+    size_t ber_vec_size;
+    std::atomic<size_t> ber_frames_processed;
+
     std::atomic<bool> back_running = true;
     std::atomic<bool> input_flag = false;
+
+    std::atomic<bool> experiment = false;
+    std::atomic<bool> is_realtime = false;
 
     fftwf_plan plan_spectrum;
     fftwf_complex *in_spectrum;
@@ -67,6 +78,8 @@ struct SharedData
     fftwf_complex *in_fft;
     fftwf_complex *out_fft;
 };
+
+constexpr size_t PACKET_SIZE = 100;
 
 void back(SharedData &sd);
 
@@ -87,3 +100,6 @@ std::vector<std::complex<float>> ofdm_demodulator(const std::vector<std::complex
 std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &signal, SharedData &sd);
 
 std::vector<std::complex<float>> chanel_model(const std::vector<std::complex<float>> ofdm_symbols, SharedData &sd);
+
+float BER(const std::vector<uint8_t> &tx_bits, const std::vector<uint8_t> &rx_bits);
+void run_experiment(SharedData &sd);

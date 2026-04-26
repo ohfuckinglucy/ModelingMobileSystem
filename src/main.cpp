@@ -6,6 +6,7 @@
 
 #include <fftw3.h>
 #include <thread>
+#include <vector>
 
 int main(int argc, char *argv[])
 {
@@ -43,6 +44,11 @@ int main(int argc, char *argv[])
     ImGui_ImplOpenGL3_Init("#version 330");
 
     SharedData sd;
+
+    sd.BER_vec.resize(1000, 0.0f);
+    sd.ber_vec_offset = 0;
+    sd.ber_vec_size = 1000;
+    sd.ber_frames_processed = 0;
 
     sd.in_ifft = fftwf_alloc_complex(sd.OfdmCfg.FFT_SIZE);
     sd.out_ifft = fftwf_alloc_complex(sd.OfdmCfg.FFT_SIZE);
@@ -84,7 +90,24 @@ int main(int argc, char *argv[])
         ImGui::SliderInt("FFT Size", &sd.OfdmCfg.FFT_SIZE, 64, 512);
         ImGui::SliderInt("Piltos Space", &sd.OfdmCfg.RS, 4, 30);
         ImGui::SliderFloat("Guard", &sd.OfdmCfg.C, 0, 1);
-        ImGui::SliderInt("CP Ratio", &sd.OfdmCfg.CP_ratio, 0, sd.OfdmCfg.FFT_SIZE);
+        ImGui::SliderInt("CP Ratio", &sd.OfdmCfg.CP_ratio, 1, sd.OfdmCfg.FFT_SIZE);
+
+        ImGui::SliderInt("Num of beams", &sd.ChannelCfg.N_b, 1, 12);
+        ImGui::SliderFloat("PSD", &sd.ChannelCfg.N_0, -100, 40);
+        ImGui::DragInt("Bandwidth", &sd.ChannelCfg.B, 0, 20000000);
+        ImGui::SliderFloat("Carrier Freq", &sd.ChannelCfg.carrier_freq, 0.0f, 3000e6f, "%.3e");
+
+        ImGui::Text("BER: %f", sd.BER);
+
+        bool exp = sd.experiment.load();
+
+        if (ImGui::Checkbox("Experiment", &exp))
+            sd.experiment.store(exp);
+
+        bool isreal = sd.is_realtime.load();
+
+        if (ImGui::Checkbox("Real Time", &isreal))
+            sd.is_realtime.store(isreal);
 
         ImGui::End();
 
@@ -208,6 +231,9 @@ int main(int argc, char *argv[])
             std::vector<float> I;
             std::vector<float> Q;
 
+            if (sd.symbols_rx.size() < 0)
+                continue;
+
             I.reserve(sd.symbols_rx.size());
             Q.reserve(sd.symbols_rx.size());
 
@@ -226,6 +252,35 @@ int main(int argc, char *argv[])
             ImPlot::EndPlot();
         }
 
+        ImGui::End();
+
+        ImGui::Begin("Constellation Raw");
+
+        if (ImPlot::BeginPlot("I/Q", ImVec2(-1, -1)))
+        {
+            std::vector<float> I;
+            std::vector<float> Q;
+
+            I.reserve(sd.signal.size());
+            Q.reserve(sd.signal.size());
+
+            for (size_t i = 0; i < sd.signal.size(); i++)
+            {
+                I.push_back(sd.signal[i].real());
+                Q.push_back(sd.signal[i].imag());
+            }
+
+            ImPlot::SetupAxesLimits(-1.5, 1.5, -1.5, 1.5);
+
+            ImPlot::SetupFinish();
+
+            ImPlot::PlotScatter("IQ", I.data(), Q.data(), I.size());
+
+            ImPlot::EndPlot();
+        }
+
+        ImGui::End();
+
         ImGui::Begin("Spectrum Analyzer");
         if (ImPlot::BeginPlot("Spectrum", ImVec2(-1, -1)))
         {
@@ -236,6 +291,37 @@ int main(int argc, char *argv[])
             ImPlot::EndPlot();
         }
         ImGui::End();
+
+        ImGui::Begin("BER");
+
+        if (ImPlot::BeginPlot("BER vs N_0", ImVec2(-1, -1)))
+        {
+            if (!sd.ber_curve.empty())
+                ImPlot::PlotLine("Practical BER", sd.ber_curve.data(), sd.ber_curve.size());
+
+            ImPlot::EndPlot();
+        }
+
+        ImGui::End();
+
+        ImGui::Begin("BER History");
+        static std::vector<float> ber_render_buffer(sd.ber_vec_size);
+
+        int render_start = (sd.ber_vec_offset + 1) % sd.ber_vec_size;
+        int samples_count = sd.ber_frames_processed;
+        if (samples_count > sd.ber_vec_size)
+            samples_count = sd.ber_vec_size;
+
+        for (int i = 0; i < samples_count; i++)
+            ber_render_buffer[i] = sd.BER_vec[(render_start + i) % sd.ber_vec_size];
+
+        if (ImPlot::BeginPlot("BER History", ImVec2(-1, -1)))
+        {
+            ImPlot::SetupAxis(ImAxis_X1, "Frame");
+            ImPlot::SetupAxis(ImAxis_Y1, "BER");
+            ImPlot::PlotLine("BER", ber_render_buffer.data(), samples_count);
+            ImPlot::EndPlot();
+        }
 
         ImGui::End();
 

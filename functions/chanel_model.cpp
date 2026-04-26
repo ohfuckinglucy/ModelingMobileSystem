@@ -14,7 +14,8 @@ std::vector<std::complex<float>> chanel_model(const std::vector<std::complex<flo
     std::vector<float> G(N_b);
 
     std::random_device rd;
-    std::mt19937 gen(rd());
+    static std::mt19937 gen(42);
+    // std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(10, 500);
 
     for (int i = 0; i < N_b; ++i)
@@ -38,6 +39,10 @@ std::vector<std::complex<float>> chanel_model(const std::vector<std::complex<flo
         G[i] = static_cast<float>(c / (4 * M_PI * D[i] * carrier_f));
     }
 
+    float maxG = *std::max_element(G.begin(), G.end());
+    for (auto &g : G)
+        g /= maxG;
+
     std::vector<std::complex<float>> rx_signal(ofdm_symbols.size(), { 0.f, 0.f });
 
     for (int i = 0; i < N_b; ++i)
@@ -45,33 +50,32 @@ std::vector<std::complex<float>> chanel_model(const std::vector<std::complex<flo
         int shift = L[i];
         float gain = G[i];
 
+        if (shift >= ofdm_symbols.size())
+            continue;
+
         for (size_t k = 0; k < ofdm_symbols.size() - shift; ++k)
         {
             rx_signal[k + shift] += ofdm_symbols[k] * gain;
         }
     }
 
-    float power = 0;
-    for (auto &s : rx_signal)
-        power += std::norm(s);
+    // float signal_power = 0.0f;
+    // for (const auto &s : rx_signal)
+    //     signal_power += std::norm(s);
+    // signal_power /= static_cast<float>(rx_signal.size());
+    // if (signal_power < 1e-9f)
+    //     signal_power = 1e-9f;
 
-    power /= rx_signal.size();
+    // float norm = 1.0f / std::sqrt(signal_power);
+    // for (auto &s : rx_signal)
+    //     s *= norm;
 
-    float scale = 1.0f / sqrt(power);
-
-    for (auto &s : rx_signal)
-        s *= scale;
-
-    float P_linear = powf(10, sd.ChannelCfg.N_0 / 10);
-    float sigma = sqrtf(P_linear / 2);
+    float noise_pwr_linear = std::pow(10.0f, sd.ChannelCfg.N_0 / 10.0f);
+    float sigma = std::sqrt(noise_pwr_linear / 2.0f);
 
     std::normal_distribution<float> noise_dist(0.0f, sigma);
-
     for (auto &sample : rx_signal)
-    {
-        std::complex<float> noise(noise_dist(gen), noise_dist(gen));
-        sample += noise;
-    }
+        sample += std::complex<float>(noise_dist(gen), noise_dist(gen));
 
     return rx_signal;
 }

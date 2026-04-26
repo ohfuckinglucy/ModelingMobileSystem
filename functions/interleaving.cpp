@@ -1,10 +1,11 @@
 #include "header.hpp"
 
+constexpr size_t B = 30;
+
 std::vector<uint32_t> interleaving(std::vector<uint32_t> &hamming_encoded)
 {
     if (hamming_encoded.empty())
         return {};
-    constexpr size_t B = 32;
     const size_t N = hamming_encoded.size();
 
     std::vector<uint32_t> output(N, 0);
@@ -25,7 +26,6 @@ std::vector<uint32_t> deinterleaving(std::vector<uint32_t> interleaving_block)
 {
     if (interleaving_block.empty())
         return {};
-    constexpr size_t B = 32;
     const size_t N = interleaving_block.size();
 
     std::vector<uint32_t> output(N, 0);

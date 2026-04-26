@@ -72,25 +72,20 @@ std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes)
     {
         uint8_t syndrome = 0;
         uint32_t block = 0;
+        uint32_t word = encoded_bytes[i];
 
         int data_bit_pos = 23;
 
         for (int j = 1; j <= 30; ++j)
         {
-            if ((encoded_bytes[i] >> (j - 1)) & 1)
+            if ((word >> (j - 1)) & 1)
             {
                 syndrome ^= j;
             }
         }
 
-        if (syndrome == 0)
-        {
-            // std::cerr << "[DEBUG] OK" << std::endl;
-        }
-        else
-        {
-            encoded_bytes[i] ^= (1U << (syndrome - 1));
-        }
+        if (syndrome != 0)
+            word ^= (1U << (syndrome - 1));
 
         for (int j = 1; j <= 30; ++j)
         {
@@ -100,7 +95,7 @@ std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes)
             if (data_bit_pos < 0)
                 break;
 
-            if ((encoded_bytes[i] >> (j - 1)) & 1)
+            if ((word >> (j - 1)) & 1)
             {
                 block |= (1U << data_bit_pos);
             }

@@ -86,11 +86,13 @@ set(COMMON_SRCS
     ${FUNC_DIR}/error_detector.cpp
     ${FUNC_DIR}/interleaving.cpp
     ${FUNC_DIR}/modulator.cpp
-    ${FUNC_DIR}/imgui_funcs.cpp
     ${FUNC_DIR}/chanel_model.cpp
     ${FUNC_DIR}/ofdm_modulator.cpp
+    ${FUNC_DIR}/ber.cpp
     ${SRC_DIR}/back.cpp
 )
+
+set(CMAKE_BUILD_TYPE Debug)
 
 # ---------- main.elf ----------
 add_executable(main.elf

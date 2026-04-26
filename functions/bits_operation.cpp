@@ -10,7 +10,7 @@ std::vector<uint8_t> encoder(std::string text)
         bits.push_back(uint8_t(let));
     }
 
-    return { bits };
+    return bits;
 }
 
 std::string decoder(std::vector<uint8_t> &bytes)
