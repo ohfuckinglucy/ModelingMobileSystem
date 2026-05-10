@@ -59,11 +59,8 @@ std::vector<uint32_t> hamming_encoder(std::vector<uint8_t> &bytes)
 
 std::vector<uint8_t> hamming_decoder(std::vector<uint32_t> &encoded_bytes)
 {
-    if (encoded_bytes.size() < 1)
-    {
-        std::cerr << "[ERROR] Недостаточно байт!" << std::endl;
-        return {};
-    }
+    while (encoded_bytes.size() % 3 != 0)
+        encoded_bytes.push_back(0);
 
     std::vector<uint8_t> decoded_bytes;
     decoded_bytes.reserve(encoded_bytes.size() * 3);

@@ -196,3 +196,159 @@ std::vector<float> spectrum_calculate(const std::vector<std::complex<float>> &si
 
     return spectrum_db;
 }
+
+static void build_user_subcarriers(SharedData &sd, std::vector<std::vector<int>> &user_sc, int &guard_out, int &usable_out)
+{
+    int NSYM, RS, CP;
+    compute_OFDM_params(sd.OfdmCfg, NSYM, RS, CP);
+
+    const int N_fft = sd.OfdmCfg.FFT_SIZE;
+    const int guard = (int)std::floor(sd.OfdmCfg.C * (NSYM + RS));
+    const int usable = N_fft - 2 * guard;
+    const int step = usable / 4;
+
+    guard_out = guard;
+    usable_out = usable;
+
+    user_sc.assign(4, {});
+    for (int u = 0; u < 4; u++)
+    {
+        int start = guard + u * step;
+        int end = guard + (u == 3 ? usable : (u + 1) * step);
+
+        for (int k = start; k < end; k++)
+        {
+            bool is_pilot = ((k - guard) % sd.OfdmCfg.RS == 0);
+            if (!is_pilot)
+                user_sc[u].push_back(k);
+        }
+    }
+}
+
+std::vector<std::complex<float>> ofdma_modulator(SharedData &sd)
+{
+    int NSYM, RS, CP;
+    const int N_fft = compute_OFDM_params(sd.OfdmCfg, NSYM, RS, CP);
+
+    int guard, usable;
+    std::vector<std::vector<int>> user_sc;
+    build_user_subcarriers(sd, user_sc, guard, usable);
+
+    size_t num_ofdm = 0;
+    for (int u = 0; u < 4; u++)
+    {
+        if (user_sc[u].empty())
+            continue;
+        size_t n = (sd.users[u].qpsk.size() + user_sc[u].size() - 1) / user_sc[u].size();
+        num_ofdm = std::max(num_ofdm, n);
+    }
+
+    if (num_ofdm == 0)
+        return {};
+
+    const std::complex<float> pilot(1.f, 0.f);
+
+    std::vector<std::complex<float>> output;
+    output.reserve(num_ofdm * (N_fft + CP));
+
+    for (size_t sym = 0; sym < num_ofdm; sym++)
+    {
+        std::vector<std::complex<float>> freq(N_fft, { 0.f, 0.f });
+
+        for (int k = guard; k < N_fft - guard; k += sd.OfdmCfg.RS)
+            freq[k] = pilot;
+
+        for (int u = 0; u < 4; u++)
+        {
+            int sc_u = (int)user_sc[u].size();
+            for (int j = 0; j < sc_u; j++)
+            {
+                size_t idx = sym * sc_u + j;
+                if (idx < sd.users[u].qpsk.size())
+                    freq[user_sc[u][j]] = sd.users[u].qpsk[idx];
+            }
+        }
+
+        std::copy_n(freq.begin(), N_fft, reinterpret_cast<std::complex<float> *>(sd.in_ifft));
+        fftwf_execute(sd.plan_ifft);
+
+        std::vector<std::complex<float>> time_sym(N_fft);
+        std::copy_n(reinterpret_cast<std::complex<float> *>(sd.out_ifft), N_fft, time_sym.begin());
+
+        for (auto &v : time_sym)
+            v /= (float)N_fft;
+
+        output.insert(output.end(), time_sym.end() - CP, time_sym.end());
+        output.insert(output.end(), time_sym.begin(), time_sym.end());
+    }
+
+    return output;
+}
+
+void ofdma_demodulator(const std::vector<std::complex<float>> &rx, SharedData &sd)
+{
+    int NSYM, RS, CP;
+    const int N_fft = compute_OFDM_params(sd.OfdmCfg, NSYM, RS, CP);
+
+    int guard, usable;
+    std::vector<std::vector<int>> user_sc;
+    build_user_subcarriers(sd, user_sc, guard, usable);
+
+    for (int u = 0; u < 4; u++)
+        sd.users[u].qpsk.clear();
+
+    size_t symbol_len = N_fft + CP;
+    size_t num_symbols = rx.size() / symbol_len;
+
+    std::vector<int> pilot_pos;
+    for (int k = guard; k < N_fft - guard; k += sd.OfdmCfg.RS)
+        pilot_pos.push_back(k);
+
+    const std::complex<float> pilot(1.f, 0.f);
+
+    std::vector<std::complex<float>> freq(N_fft);
+    std::vector<std::complex<float>> H(N_fft, { 1.f, 0.f });
+    std::vector<std::complex<float>> freq_eq(N_fft);
+
+    for (size_t sym = 0; sym < num_symbols; sym++)
+    {
+        size_t pos = sym * symbol_len;
+
+        std::copy_n(rx.begin() + pos + CP, N_fft, reinterpret_cast<std::complex<float> *>(sd.in_fft));
+        fftwf_execute(sd.plan_fft);
+        std::copy_n(reinterpret_cast<std::complex<float> *>(sd.out_fft), N_fft, freq.begin());
+
+        for (int k : pilot_pos)
+            H[k] = freq[k] / pilot;
+
+        for (int p = 0; p + 1 < (int)pilot_pos.size(); p++)
+        {
+            int k1 = pilot_pos[p];
+            int k2 = pilot_pos[p + 1];
+
+            float m1 = std::abs(H[k1]), m2 = std::abs(H[k2]);
+            float a1 = std::arg(H[k1]), a2 = std::arg(H[k2]);
+
+            for (int k = k1 + 1; k < k2; k++)
+            {
+                float t = (float)(k - k1) / (float)(k2 - k1);
+                H[k] = std::polar(m1 + t * (m2 - m1), a1 + t * (a2 - a1));
+            }
+        }
+
+        if (!pilot_pos.empty())
+        {
+            for (int k = 0; k < pilot_pos.front(); k++)
+                H[k] = H[pilot_pos.front()];
+            for (int k = pilot_pos.back() + 1; k < N_fft; k++)
+                H[k] = H[pilot_pos.back()];
+        }
+
+        for (int k = 0; k < N_fft; k++)
+            freq_eq[k] = (std::abs(H[k]) > 1e-6f) ? freq[k] / H[k] : freq[k];
+
+        for (int u = 0; u < 4; u++)
+            for (int k : user_sc[u])
+                sd.users[u].qpsk.push_back(freq_eq[k]);
+    }
+}

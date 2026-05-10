@@ -59,17 +59,6 @@ std::vector<std::complex<float>> chanel_model(const std::vector<std::complex<flo
         }
     }
 
-    // float signal_power = 0.0f;
-    // for (const auto &s : rx_signal)
-    //     signal_power += std::norm(s);
-    // signal_power /= static_cast<float>(rx_signal.size());
-    // if (signal_power < 1e-9f)
-    //     signal_power = 1e-9f;
-
-    // float norm = 1.0f / std::sqrt(signal_power);
-    // for (auto &s : rx_signal)
-    //     s *= norm;
-
     float noise_pwr_linear = std::pow(10.0f, sd.ChannelCfg.N_0 / 10.0f);
     float sigma = std::sqrt(noise_pwr_linear / 2.0f);
 
