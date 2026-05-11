@@ -82,6 +82,10 @@ void back(SharedData &sd)
 
             std::lock_guard<std::mutex> lock(sd.mtx);
 
+            for (int i = 0; i < 4; ++i){
+                sd.qpsk_gui[i].assign(sd.users[i].qpsk.begin(), sd.users[i].qpsk.end());
+            }
+
             sd.symbols_rx.clear();
             for (int u = 0; u < 4; ++u)
             {

@@ -4,7 +4,9 @@
 #include "imgui.h"
 #include "implot.h"
 
+#include <complex>
 #include <fftw3.h>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -266,15 +268,20 @@ int main(int argc, char *argv[])
             {
                 ImPlot::SetupAxesLimits(-1.5, 1.5, -1.5, 1.5, ImPlotCond_Always);
                 ImPlot::SetupFinish();
+                std::vector<std::complex<float>> syms_gui;
 
-                auto &syms = sd.users[u].qpsk;
-                if (!syms.empty())
+                {
+                    std::lock_guard<std::mutex> lock(sd.mtx);
+                    syms_gui = sd.qpsk_gui[u];
+                }
+
+                if (!syms_gui.empty())
                 {
                     std::vector<float> I, Q;
-                    I.reserve(syms.size());
-                    Q.reserve(syms.size());
+                    I.reserve(syms_gui.size());
+                    Q.reserve(syms_gui.size());
 
-                    for (auto &s : syms)
+                    for (auto &s : syms_gui)
                     {
                         I.push_back(s.real());
                         Q.push_back(s.imag());

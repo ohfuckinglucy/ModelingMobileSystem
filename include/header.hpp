@@ -53,6 +53,7 @@ struct SharedData
     std::vector<std::complex<float>> ofdm_symbols;
     std::vector<std::complex<float>> signal;
     std::vector<float> rx_spectrum;
+    std::vector<std::vector<std::complex<float>>> qpsk_gui;
 
     float BER = 0.f;
     std::vector<float> BER_vec;
