@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
     ImGui_ImplOpenGL3_Init("#version 330");
 
     SharedData sd;
+    sd.qpsk_gui.resize(4);
 
     sd.BER_vec.resize(1000, 0.0f);
     sd.ber_vec_offset = 0;
